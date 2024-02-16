@@ -1,98 +1,262 @@
+var isAutoDropsStopped = false;
+var repeatDrop = false;
+let offsetX, offsetY, x, y, isControlPanelDragging = false;
+
+var c = 0;
+var i = 0;
+
+
+// make it possible for the mailer to specify the drop amount
+const dropAmount = 6000
+
+
 function setDropUIElements(){
   document.querySelector(".nav").remove();
   document.querySelector(".content").style.left = "270px";
 
-  // Create the main container
+  // the main left side container
   const container = document.createElement("div");
   container.style.width = "270px";
   container.style.height = "100%";
   container.style.position = "absolute";
   container.style.backgroundColor = "black";
   container.style.padding = "10px";
+  container.style.background = '#00549a';
 
-  // Create the first textarea section
+  // the first textarea section
   const textareaSection1 = document.createElement("div");
   textareaSection1.innerHTML = `
-      <input type="checkbox" id="active"> Add Generative Negative
+  	  <h1 style="font-weight:bold;color:white;text-align:center;margin:10px">AUTO DROP MAKER</h1>
       <!-- <input type="checkbox" id="reverse"> Reverse -->
       <!-- <input type="checkbox" id="multipart"> Multipart -->
       <br /><br />
       <!-- <textarea id="nr" rows="1" placeholder="Enter text here"></textarea> -->
     `;
 
-  // Create the second textarea section
+  // the second textarea section
   const textareaSection2 = document.createElement("div");
   textareaSection2.innerHTML = `
       <textarea id="CreativeLh" style="width=100%" placeholder="Creative (With Negative Text)"></textarea>
       <textarea id="my-ips-input"  placeholder="Ips"></textarea>
       <textarea id="my-froms-input"  placeholder="Froms"></textarea>
       <!-- <textarea id="my-negas-input" placeholder="Negatives"></textarea> --> 
+      <textarea id="my-negas-input" placeholder="Negatives"></textarea>
+      <input type="checkbox" id="active"> Auto Generate Negative
+      <br/><br/>
       <textarea id="my-starts-input" placeholder="Starts"></textarea>
-      <textarea id="my-negas-input" placeholder="Neggas"></textarea>
       <input type="number" id="my-drops-count" placeholder="Drops Count" />
       
-      <input style="margin-top: 30px; font-size: 25px; background: blue; padding: 20px; color: white;" id="start-drops-btn" type="submit" value="Start" />
+      <input style="margin-top: 30px; font-size: 25px; background: 4CAF50; padding: 15px 32px; color: white; min-width:100%" id="start-drops-btn" type="submit" value="START" />
     `;
+  
+  	// listen to the auto generate negative checkbox and enable/disable the textarea for negative files accordingly
+  	const autoGenerateNegativeCheckbox = textareaSection2.querySelector("#active");
+  	autoGenerateNegativeCheckbox.addEventListener("change", function (){
+    	if(autoGenerateNegativeCheckbox.checked){
+          textareaSection2.querySelector("#my-negas-input").disabled = true;
+          textareaSection2.querySelector("#my-negas-input").style.opacity = 0.6;
+          textareaSection2.querySelector("#CreativeLh").placeholder = "Creative (Without Negative Text)";
+        }else{
+          textareaSection2.querySelector("#my-negas-input").disabled = false;
+          textareaSection2.querySelector("#my-negas-input").style.opacity = 1;
+          textareaSection2.querySelector("#CreativeLh").placeholder = "Creative (With Negative Text)";
+        }
+    })
+  
+	textareaSection2.querySelector("#my-ips-input").addEventListener("change", function (){
+		const ipss = textareaSection2.querySelector("#my-ips-input")
+		if(ipss.value){
+			startshs = []
+			for(var i = 0; i < ipss.value.split("\n").length * dropAmount; i += dropAmount){
+				startshs.push(i)
+			}
+			textareaSection2.querySelector("#my-starts-input").value = startshs.join("\n");
+          	textareaSection2.querySelector("#my-drops-count").value = startshs.length;
+		}
+	});
+  
+    // Append sections to the container
+    container.appendChild(textareaSection1);
+    container.appendChild(textareaSection2);
 
-  // Append sections to the container
-  container.appendChild(textareaSection1);
-  container.appendChild(textareaSection2);
-
-  // Append the container to the body
-  const firstChild = document.querySelector(".center").firstChild;
-  document.querySelector(".center").insertBefore(container, firstChild);
+    // Append the container to the body
+    const firstChild = document.querySelector(".center").firstChild;
+    document.querySelector(".center").insertBefore(container, firstChild);
 }
 
-
-var isAutoDropsStopped = false;
-var c = 0;
-var i = 0;
 
 
 try {
   
 	function initAutoDrops(){
 		setDropUIElements()  
-		
 		document.getElementById("start-drops-btn").addEventListener("click", () => oklh());
-		
 		document.querySelectorAll(".send")[3].setAttribute("id", "sentlh");
 	}
 	  
 	// Function to show a custom popup with an OK, Cancel buttons
-	async function showCustomPopup(message) {
+	async function showCustomPopup(mainLoopIndex) {
+		const ipsInput = document.getElementById("my-ips-input");
+		const fromsInput = document.getElementById("my-froms-input");
+		const startsFromLineInput = document.getElementById("my-starts-input");
+		const negasInput = document.getElementById("my-negas-input");
+		const dropsCountInput = document.getElementById("my-drops-count");
+		const dropsCount = parseInt(dropsCountInput.value);
+		var startshs = startsFromLineInput.value.split("\n");
+      	var ips = ipsInput.value.split("\n")
+        var fromss = fromsInput.value.split("\n")
+		
 	  return new Promise((resolve, reject) => {
 		const popupContainer = document.createElement('div');
+        popupContainer.style.minHeight = '500px';
+        popupContainer.style.width = '500px';
 		popupContainer.style.position = 'fixed';
-		popupContainer.style.top = '50%';
-		popupContainer.style.left = '50%';
-		popupContainer.style.transform = 'translate(-50%, -50%)';
-		popupContainer.style.padding = '10px';
-		popupContainer.style.background = 'white';
+        if(x){
+          popupContainer.style.left = `${x}px`;
+        }else{
+          popupContainer.style.left = '0';
+        }
+        if(y){
+          	popupContainer.style.top = `${y}px`;
+        }else{
+			popupContainer.style.top = '0';
+        }        
+
+		
+		//popupContainer.style.transform = 'translate(-50%, -50%)';
+		popupContainer.style.padding = '0 0 20px 0';
+		//popupContainer.style.backgroundImage = 'url("https://cdn.wallpapersafari.com/70/22/0H2I8T.jpg")';
+        //popupContainer.style.backgroundRepeat = 'no-repeat';
+        //popupContainer.style.backgroundSize = 'cover';
+        popupContainer.style.background = '#00549a';
 		popupContainer.style.border = '1px solid #ccc';
 		popupContainer.style.display = 'flex';
-		popupContainer.style.justifyContent = 'center';
-		popupContainer.style.alignItems = 'center';
+        popupContainer.style.flexDirection = 'column';
+		popupContainer.style.justifyContent = 'space-between';
+		popupContainer.style.alignItems = 'start';
 		popupContainer.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';
 		popupContainer.style.border = 'solid black 3px';
+        
+        const draggableHandle = document.createElement("div")
+        draggableHandle.style.height = "30px"
+        draggableHandle.style.marginBottom = "50px"
+        draggableHandle.style.width = "100%"
+        draggableHandle.style.background = "#dddddd"
+        draggableHandle.style.display = "flex"
+        draggableHandle.style.justifyContent = "center"
+        draggableHandle.style.alignItems = "center"
+        
+         const handleBar = document.createElement("div")
+         handleBar.style.height = "4px"
+        handleBar.style.width = "150px"
+        handleBar.style.background = "#000000"
+        
+        draggableHandle.appendChild(handleBar)
+        
+         draggableHandle.addEventListener('mousedown', (e) => {
+      isControlPanelDragging = true;
+
+      // initial offset
+      offsetX = e.clientX - popupContainer.getBoundingClientRect().left;
+      offsetY = e.clientY - popupContainer.getBoundingClientRect().top;
+
+      
+      draggableHandle.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isControlPanelDragging) return;
+      
+      x = e.clientX - offsetX;
+      y = e.clientY - offsetY;
+      
+      popupContainer.style.left = `${x}px`;
+      popupContainer.style.top = `${y}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isControlPanelDragging) {
+        isControlPanelDragging = false;
+        
+        draggableHandle.style.cursor = 'grab';
+        document.body.style.userSelect = 'unset';
+      }
+    });
+        
+        
+        
+        
+        const actionButtonsContainer = document.createElement("div")
+        actionButtonsContainer.style.width = '100%';
+        actionButtonsContainer.style.margin = '0 20px';
+        actionButtonsContainer.style.minWidth = '100%';
+        actionButtonsContainer.style.display = 'flex';
+        //actionButtonsContainer.style.flexDirection = 'column';
+        actionButtonsContainer.style.marginBottom = '20px';
 		
-		const popupMessage = document.createElement('div');
-		popupMessage.textContent = message;
-		popupContainer.appendChild(popupMessage);
+		const popupDropDetails = document.createElement('div');
+        popupDropDetails.style.margin = '0 20px';
+		popupDropDetails.innerHTML = `
+		<table id="junodropsinfo" style="width: 460px; height: 100%; background: #f5f5f5; color: #000000; overflow:scroll;">
+			<thead><tr style="background:#eeeeee;"><th>Id</th><th>IP</th><th>From</th><th>Start</th><th>Status</th><th></th></tr></thead>
+			<tbody></tbody>
+		</table></br>`
+		
+        
+		for(var j = 0; j < mainLoopIndex; j++){
+        	popupDropDetails.querySelector("tbody").innerHTML += `
+			<tr style="padding:5px;background: #00ee00aa;">
+				<td style="color: #000000;">${j+1}</td>
+				<td style="color: #000000;">${ips[j]}</td>
+                <td style="color: #000000;">${fromss[j]}</td>
+                <td style="color: #000000;">${startshs[j]}</td>
+                <td style="color: #000000;">Dropped</td>
+                <td style="color: #000000;">➡️</td>
+			</tr>`;
+        }
+		
+		popupDropDetails.querySelector("tbody").innerHTML += `
+		<tr style="padding:5px; background:#00ee0055;">
+        	<td style="color: #000000;">${mainLoopIndex+1}</td>
+			<td style="color: #000000;">${ips[mainLoopIndex]}</td>
+            <td style="color: #000000;">${fromss[mainLoopIndex]}</td>
+			<td style="color: #000000;">${startshs[mainLoopIndex]}</td>
+			<td style="color: #000000;">Next</td>
+            <td style="color: #000000;">⬅️</td>
+		</tr>`;
+		
+        if(mainLoopIndex < ips.length){
+          for(var h = mainLoopIndex+1; h < ips.length; h++){
+        	popupDropDetails.querySelector("tbody").innerHTML += `
+			<tr style="padding:5px;">
+				<td style="color: #000000;">${h+1}</td>
+                <td style="color: #000000;">${ips[h]}</td>
+                <td style="color: #000000;">${fromss[h]}</td>
+                <td style="color: #000000;">${startshs[h]}</td>
+                <td style="color: #000000;">Upcoming</td>
+                <td style="color: #000000;">⬅️</td>
+			</tr>`;
+        	} 
+        }
+		
 
 		const okButton = document.createElement('button');
 		// Apply epic styles
-		okButton.style.backgroundColor = '#4CAF50'; // Green background color
+		okButton.style.backgroundColor = '#4CAF50';
+        okButton.style.width = '100%';
 		okButton.style.border = 'none';
 		okButton.style.color = 'white';
 		okButton.style.padding = '15px 32px';
 		okButton.style.textAlign = 'center';
 		okButton.style.textDecoration = 'none';
-		okButton.style.display = 'inline-block';
+		okButton.style.display = 'flex';
+        okButton.style.justifyContent = 'center';
+		okButton.style.alignItems = 'center';
 		okButton.style.fontSize = '16px';
-		okButton.style.margin = '4px 2px';
+		okButton.style.margin = '0 10px';
+        okButton.title = "Launch Next Drop"
 		okButton.style.transition = 'background-color 0.3s';
-		okButton.textContent = 'Launch Next Drop';
 		// Add hover effect
 		okButton.addEventListener('mouseover', function () {
 		  okButton.style.backgroundColor = '#45a049';
@@ -103,9 +267,52 @@ try {
 		});
 		okButton.addEventListener('click', () => {
 		  document.body.removeChild(popupContainer);
-		  resolve();
+		  resolve("next");
 		});
-		popupContainer.appendChild(okButton);
+                
+        okButton.innerHTML = `
+        	<img style="display:inline;" src="https://pbs.twimg.com/media/GGZ_e44WcAAOShQ?format=png" width="40" />
+        `
+        
+        
+		actionButtonsContainer.appendChild(okButton);
+		
+		//----------
+        
+        
+        const repeatButton = document.createElement('button');
+        repeatButton.setAttribute("id", "juno-repeat-btn")
+		repeatButton.style.backgroundColor = '#dddd00';
+		repeatButton.style.border = 'none';
+        repeatButton.style.width = '100%';
+		repeatButton.style.color = 'white';
+		repeatButton.style.display = 'flex';
+        repeatButton.style.justifyContent = 'center';
+		repeatButton.style.alignItems = 'center';        
+		repeatButton.style.padding = '15px 32px';
+		repeatButton.style.textAlign = 'center';
+		repeatButton.style.textDecoration = 'none';
+		repeatButton.style.fontSize = '16px';
+		repeatButton.style.margin = '0 10px';
+		repeatButton.style.transition = 'background-color 0.3s';
+		repeatButton.title = 'Repeat Prev Drop';
+        
+		repeatButton.addEventListener('mouseover', function () {
+		  repeatButton.style.backgroundColor = '#eeee00';
+		});
+		repeatButton.addEventListener('mouseout', function () {
+		  repeatButton.style.backgroundColor = '#dddd00';
+		});
+        
+		repeatButton.addEventListener('click', () => {
+		  document.body.removeChild(popupContainer);
+		  resolve("repeat");
+		});
+        
+        repeatButton.innerHTML = `
+        	<img style="display:inline;" src="https://pbs.twimg.com/media/GGZ_chKW0AAsUtd?format=png" width="40" />
+        `
+		actionButtonsContainer.appendChild(repeatButton);
 		
 		//----------
 		
@@ -114,14 +321,17 @@ try {
 		cancelButton.style.backgroundColor = '#ff0000';
 		cancelButton.style.border = 'none';
 		cancelButton.style.color = 'white';
+        cancelButton.style.width = '100%';
 		cancelButton.style.padding = '15px 32px';
 		cancelButton.style.textAlign = 'center';
 		cancelButton.style.textDecoration = 'none';
-		cancelButton.style.display = 'inline-block';
+		cancelButton.style.display = 'flex';
+        cancelButton.style.justifyContent = 'center';
+		cancelButton.style.alignItems = 'center';
 		cancelButton.style.fontSize = '16px';
-		cancelButton.style.margin = '4px 2px';
+		repeatButton.style.margin = '0 10px';
 		cancelButton.style.transition = 'background-color 0.3s';
-		cancelButton.textContent = 'Stop Auto Drops';
+		cancelButton.title = 'Stop Auto Drops';
 		// Add hover effect
 		cancelButton.addEventListener('mouseover', function () {
 		  cancelButton.style.backgroundColor = '#dd0000'; // Darker green on hover
@@ -130,6 +340,11 @@ try {
 		cancelButton.addEventListener('mouseout', function () {
 		  cancelButton.style.backgroundColor = '#ff0000';
 		});
+        
+        cancelButton.innerHTML = `
+            <img style="display:inline;" src="https://pbs.twimg.com/media/GGZ_ZkRXwAAsgLL?format=png" width="40" />
+        `
+
 		cancelButton.addEventListener('click', () => {
 		  // stop everything
 		  var stopAll = confirm("Are you sure you want to stop all of the auto Drops? you're gonna have to start all over again!");
@@ -140,32 +355,44 @@ try {
 		  }
 		  
 		});
-		popupContainer.appendChild(cancelButton);
-		//------------
+        
+		actionButtonsContainer.appendChild(cancelButton);
+		
+        //------------
+        
 
+        const upperWrapper = document.createElement("div")
+        upperWrapper.style.display = "flex";
+        upperWrapper.style.justifyContent = "center";
+        upperWrapper.style.alignItems = "center";
+        upperWrapper.style.width = "100%";
+        upperWrapper.appendChild(draggableHandle)
+        upperWrapper.appendChild(actionButtonsContainer)
+        
+        popupContainer.appendChild(upperWrapper);
+        popupContainer.appendChild(popupDropDetails);
+		
 		document.body.appendChild(popupContainer);
 	  });
 	}
 
 
 	// Function to manually trigger the next drop
-	async function proceedToNextDrop() {
-	  await showCustomPopup('Press OK to proceed to the next drop.');
+	async function proceedToNextDrop(index) {
+	  return await showCustomPopup(index);
 	}
 	  
 	// Function that contains the main loop
 	async function oklh() {
 	  try {
-		console.log("Beginning...");
 		const ipsInput = document.getElementById("my-ips-input");
 		const fromsInput = document.getElementById("my-froms-input");
 		const startsFromLineInput = document.getElementById("my-starts-input");
 		const negasInput = document.getElementById("my-negas-input");
 		const dropsCountInput = document.getElementById("my-drops-count");
-		
-		const dropAmount = 6000
-
 		const dropsCount = parseInt(dropsCountInput.value);
+		
+		console.log("Beginning...");
 		console.log("drops count", dropsCount);
 		dropsCountInput.value = 0;
 
@@ -182,7 +409,7 @@ try {
 		const fromsInputs = fromsInput.value.split("\n");
 		
 		
-		var startshs = []
+		
 		if(startsFromLineInput.value){
 			startshs = startsFromLineInput.value.split("\n");
 		}else{
@@ -201,16 +428,35 @@ try {
 		// main drops loop
 		for (let i = 0; i < dropsCount; i++) {
 			
+			
 		  if(isAutoDropsStopped){
 			  break;
 		  }else{
 			  try{
-				await proceedToNextDrop();  
+				var result = await proceedToNextDrop(i);
+                if(result === "repeat"){
+					console.log("Repeating---------------------------")
+                  	if (BackLh) BackLh.click();
+                    IPSelectorLh.value = ipsInputs[i-1];
+                    LocateLh.click();
+                    fromLh.value = fromsInputs[i-1];
+                    stratLineFromLh.value = startshs[i-1];
+                    setCreative(i, negativesNames[i-1]);
+                    SendLh.click();
+                    alert(`Drop #${i} has been repeated.`);
+                  	i--;
+                  	continue;
+                }
 			  }catch(e){
+                alert("Error")
+                console.log("Error---------------------------")
+                console.log(e);
+                console.log(e.toString());
+                console.log("Error---------------------------")
 				  isAutoDropsStopped = true;
 				  break;
 			  }
-			  
+			  console.log("Next ---------------------------")
 			  if (BackLh) BackLh.click();
 			  IPSelectorLh.value = ipsInputs[i];
 			  LocateLh.click();
@@ -249,6 +495,7 @@ try {
 	  for (var i = 0; i < selectElement.options.length; i++) {
 		  if (selectElement.options[i].textContent === negaName) {
 			  selectElement.selectedIndex = i;
+              console.log("Negative file set to " + selectElement.options[i].textContent)
 			  break;
 		  }
 	  }
